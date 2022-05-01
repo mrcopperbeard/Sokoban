@@ -1,8 +1,8 @@
 ﻿open System
 
-type Cell = Player | Empty | Box | Wall
+open Domain
+
 type Move = Up | Right | Down | Left
-type State = { Grid: Cell[,]; PlayerCoordinates: int * int }
 
 type Grid (grid: Cell[,]) =
     let decrement x = x - 1
@@ -10,10 +10,20 @@ type Grid (grid: Cell[,]) =
     let yLength = grid |> Array2D.length2 |> decrement
     let rec getPlayerCoordinates i j =
         match i, j, grid[i,j] with
-        | _, _, Player -> i, j
+        | _, _, Floor (Some Player) | _, _, Target (Some Player) -> i, j
         | x, y, _ when x = xLength && y = yLength -> failwith "No player on field"
         | x, _, _ when x = xLength -> getPlayerCoordinates 0 (j + 1)
         | _ -> getPlayerCoordinates (i + 1) j
+
+    let winCheck () =
+        let rec winCheckInternal i j =
+            match i, j, grid[i,j] with
+            | _, _, Floor (Some Box) -> false
+            | x, y, _ when x = xLength && y = yLength -> true
+            | x, _, _ when x = xLength -> winCheckInternal 0 (j + 1)
+            | _ -> winCheckInternal (i + 1) j
+
+        winCheckInternal 0 0
 
     let mutable playerCoordinates = getPlayerCoordinates 0 0
 
@@ -22,17 +32,11 @@ type Grid (grid: Cell[,]) =
         sprintf "%d %d" i j
 
     member _.Display () =
-        let display cell =
-            match cell with
-            | Player -> "~☺~"
-            | Empty -> "   "
-            | Box -> "[X]"
-            | Wall -> "███"
         let builder = Text.StringBuilder()
         for i in [0..xLength] do
             for j in [0..yLength] do
                 grid[i,j]
-                |> display
+                |> Display.display
                 |> if j = yLength then builder.AppendLine else builder.Append
                 |> ignore
         builder.ToString()
@@ -45,24 +49,29 @@ type Grid (grid: Cell[,]) =
             | Right -> fun (i, j) -> (i, j + 1)
             | Up -> fun (i, j) -> (i - 1, j)
 
-        let rec move cellToPlace coordinates commands =
+        let rec move (cellToPlace : GameObject option) coordinates commands =
             let i, j = coordinates
             let currentCell = grid[i,j]
             let placeCommand = cellToPlace, coordinates
+            let moveFurther obj =
+                let nextCoordinates = getNextCoordinates coordinates
+                move obj nextCoordinates (placeCommand :: commands)
+
             match currentCell with
             | Wall -> []
-            | Empty -> (placeCommand :: commands)
-            | Box | Player ->
-                let nextCoordinates = getNextCoordinates coordinates
-                move currentCell nextCoordinates (placeCommand :: commands)
+            | Floor None | Target None -> (placeCommand :: commands)
+            | Floor someObj-> moveFurther someObj
+            | Target someObj-> moveFurther someObj
 
-        let updateGrid (cell, coordinates) =
+        let updateGrid (obj: GameObject option, coordinates) =
             let i, j = coordinates
-            grid[i,j] <- cell
-            if cell = Player then playerCoordinates <- coordinates
+            grid[i,j] <- Cell.setObj grid[i,j] obj
+            if obj = Some Player then playerCoordinates <- coordinates
 
-        move Empty playerCoordinates []
+        move None playerCoordinates []
         |> List.iter updateGrid
+
+        winCheck ()
 
 let parseKey (key: ConsoleKeyInfo) =
     match key.Key with
@@ -72,25 +81,40 @@ let parseKey (key: ConsoleKeyInfo) =
     | ConsoleKey.A -> Some Left
     | _ -> None
 
-let cells = array2D [
-    [ Wall; Wall; Wall; Wall; Wall; Wall; Wall ]
-    [ Wall; Empty; Empty; Empty; Empty; Empty; Wall ]
-    [ Wall; Empty; Empty; Empty; Wall; Empty; Wall ]
-    [ Wall; Empty; Box; Player; Wall; Box; Wall ]
-    [ Wall; Empty; Empty; Empty; Empty; Empty; Wall ]
-    [ Wall; Empty; Empty; Empty; Empty; Empty; Wall ]
-    [ Wall; Wall; Wall; Wall; Wall; Wall; Wall ]
-]
+let runLevel levelNumber cells =
+    let grid = Grid(cells)
+    let display () =
+        Console.Clear()
+        printfn "Level %d" <| levelNumber + 1
+        printfn "%s" <| grid.Display()
 
-let grid = Grid(cells)
-let display () =
-    Console.Clear()
-    printfn "%s" <| grid.Display()
+    display()
+    let mutable complete = false
+    while not complete do
+        Console.ReadKey()
+        |> parseKey
+        |> function
+        | Some command -> complete <- grid.MovePlayer command; display()
+        | None -> ()
 
-display ()
-while true do
-    Console.ReadKey()
-    |> parseKey
-    |> function
-    | Some command -> grid.MovePlayer command; display ()
-    | None -> ()
+let cells = seq {
+    yield [
+        "WWWWW"
+        "WpbxW"
+        "WWWWW"
+    ]
+    yield [
+        "WWWWWWW"
+        "W     W"
+        "W     W"
+        "W bwx W"
+        "Wxp b W"
+        "WWWWWWW"
+    ]
+}
+
+cells
+|> Seq.map Display.parseLevel
+|> Seq.iteri runLevel
+
+printfn "You win!"
