@@ -4,10 +4,8 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Domain.fs" />
-    <Compile Include="Component.fs" />
-    <Compile Include="Grid.fs" />
-    <Compile Include="Entity.fs" />
+    <Compile Include="Components.fs" />
+    <Compile Include="Systems.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

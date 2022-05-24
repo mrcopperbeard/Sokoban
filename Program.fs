@@ -1,17 +1,50 @@
 ﻿open System
+open Components
 
-open Domain
-open Entity
-open Grid
+let world = World()
 
-type GameObject = Player of PlayerEntity | Box of BoxEntity | Target of TargetEntity
-let grid = Grid(5)
+module Factory =
+    let player coordinates = {
+        Transform = Some coordinates
+        Rigidbody = Some { Movable = true }
+        Display = Some "~☺~"
+    }
 
-PlayerEntity(0, 0) |> grid.Add
-BoxEntity(0, 1) |> grid.Add
-TargetEntity(0, 2) |> grid.Add
+    let box coordinates = {
+        Transform = Some coordinates
+        Rigidbody = Some { Movable = true }
+        Display = Some "[ ]"
+    }
 
-(0, 0)
-|> Coordinates
-|> grid.Display
-|> printfn "%s"
+    let wall coordinates = {
+        Transform = Some coordinates
+        Rigidbody = Some { Movable = true }
+        Display = Some "███"
+    }
+
+    let spot coordinates = {
+        Transform = Some coordinates
+        Rigidbody = None
+        Display = Some " X "
+    }
+
+let entityStore = world :> IWorld
+
+[
+    Factory.player (0, 0)
+    Factory.box (0, 1)
+    Factory.box (1, 1)
+    Factory.spot (2, 2)
+    Factory.wall (-1, 1)
+]
+|> List.iter entityStore.AddEntity
+
+let toConsole (str : string) =
+    Console.Clear()
+    Console.WriteLine str
+
+let display = Systems.display (0, 0) 5 >> toConsole
+
+world.AddSystem display
+
+world.Update()
