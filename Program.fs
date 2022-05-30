@@ -1,50 +1,31 @@
 ﻿open System
 open Components
 
+printfn "%s: Sokoban started" <| DateTime.Now.ToShortTimeString()
+
 let world = World()
-
-module Factory =
-    let player coordinates = {
-        Transform = Some coordinates
-        Rigidbody = Some { Movable = true }
-        Display = Some "~☺~"
-    }
-
-    let box coordinates = {
-        Transform = Some coordinates
-        Rigidbody = Some { Movable = true }
-        Display = Some "[ ]"
-    }
-
-    let wall coordinates = {
-        Transform = Some coordinates
-        Rigidbody = Some { Movable = true }
-        Display = Some "███"
-    }
-
-    let spot coordinates = {
-        Transform = Some coordinates
-        Rigidbody = None
-        Display = Some " X "
-    }
 
 let entityStore = world :> IWorld
 
-[
-    Factory.player (0, 0)
-    Factory.box (0, 1)
-    Factory.box (1, 1)
-    Factory.spot (2, 2)
-    Factory.wall (-1, 1)
-]
-|> List.iter entityStore.AddEntity
+let player = entityStore.CreateEntity { X = 0; Y = 0}
+
+player.AddTag "Player"
+player.SetComponent { Movable = true }
+player.SetComponent { Schematic = "~☺~" }
+
+let box = entityStore.CreateEntity { X = 2; Y = 0}
+
+box.SetComponent { Movable = true }
+box.SetComponent { Schematic = "[ ]" }
 
 let toConsole (str : string) =
     Console.Clear()
     Console.WriteLine str
 
-let display = Systems.display (0, 0) 5 >> toConsole
+let display = Systems.display { X = 0; Y = 0 } 5 >> toConsole
 
 world.AddSystem display
+world.AddSystem Systems.input
 
-world.Update()
+while true do
+    world.Update()
