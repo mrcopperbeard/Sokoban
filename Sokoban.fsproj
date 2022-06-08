@@ -4,10 +4,12 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Components.fs" />
-    <Compile Include="EventHandle.fs" />
+    <Compile Include="Engine.fs" />
     <Compile Include="Entity.fs" />
     <Compile Include="World.fs" />
+    <Compile Include="Components.fs" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="Render.fs" />
     <Compile Include="Systems.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

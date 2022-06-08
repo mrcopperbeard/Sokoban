@@ -3,52 +3,14 @@ namespace Sokoban
 module Systems =
     open System
     open Components
-    open Sokoban
+    open Sokoban.Engine
 
-    type DisplayCommand = { Center: Coordinates; Distance: int }
     type Move = Up | Right | Down | Left
 
     type WorldMessage =
-    | Display of DisplayCommand
     | Move of Move
 
-    type ConsoleDisplaySystem(world: IWorld<WorldMessage>) =
-        let display command =
-            let center = command.Center
-            let distance = command.Distance 
-            let result = Text.StringBuilder()
-            for y in [center.Y - distance .. center.Y + distance] do
-                for x in [center.X - distance .. center.X + distance] do
-                    { X = x; Y = y }
-                    |> world.GetEntity
-                    |> Option.bind (fun entity -> entity.GetComponent<Display> ())
-                    |> Option.map (fun display -> display.Schematic)
-                    |> Option.defaultValue "   "
-                    |> result.Append
-                    |> ignore
-
-                result.AppendLine "" |> ignore
-
-            result.ToString()
-
-        let toConsole (str : string) =
-            Console.Clear()
-            Console.WriteLine str
-
-        let mailbox = MailboxProcessor.Start(fun inbox ->
-            let rec loop () = async {
-                let! message = inbox.Receive()
-                message
-                |> (display >> toConsole)
-
-                return! loop()
-            }
-            loop()
-        )
-
-        member _.OnDisplay (command : DisplayCommand) = mailbox.Post command
-
-    type private TransformUpdated = { Entity: Entity; Coordinates: Coordinates }
+    type private TransformUpdated = { Entity: IEntity; Coordinates: Coordinates }
 
     type MoveSystem(world: IWorld<WorldMessage>) =
         let move (command: Move) =
@@ -78,20 +40,11 @@ module Systems =
                     | _ -> commands
                 | _ -> commands
 
-            let playerCoordinates =
-                world.FindByTag "Player"
-                |> Seq.tryHead
-                |> Option.defaultWith (fun () -> failwith "Player not found")
-                |> fun e -> e.GetComponent<Coordinates> ()
-                |> Option.defaultWith (fun () -> failwith "Player coordinates not defined")
-
+            let playerCoordinates = Utils.getPlayerCoordinates world
             let updateWorld command = command.Entity.SetComponent command.Coordinates
 
-            let commands = moveInternal playerCoordinates []
-            commands |> List.iter updateWorld
-
-            if commands |> List.isEmpty |> not then
-                world.SendMessage <| Display { Center = playerCoordinates; Distance = 5 }
+            moveInternal playerCoordinates []
+            |> List.iter updateWorld
 
         let mailbox = MailboxProcessor.Start (fun inbox -> 
             let rec loop () = async {

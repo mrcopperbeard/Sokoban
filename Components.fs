@@ -1,10 +1,8 @@
 namespace Sokoban
 
-module Components =
-    type IComponent = interface end
-    type Coordinates = { X: int; Y: int } interface IComponent
-    type Display = { Schematic: string } interface IComponent
-    type Rigidbody = { Movable: bool } interface IComponent
+open System.Collections.Generic
+open Sokoban.Engine
 
-    type EntityUpdateInfo = { EntityId: int64; Component: IComponent }
-    type EntityUpdated = ComponentAdded of EntityUpdateInfo | ComponentRemoved of EntityUpdateInfo
+module Components =
+    type Display = Schematic of string | Animated of IEnumerator<string> interface IComponent
+    type Rigidbody = { Movable: bool } interface IComponent

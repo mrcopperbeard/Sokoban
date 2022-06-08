@@ -1,31 +1,22 @@
-namespace Sokoban
+namespace Sokoban.Engine
 
 open System
 open System.Collections.Generic
-open Components
 
-type IWorld =
-    abstract member CreateEntity: Coordinates -> Entity
-    abstract member UpdateEntity: Entity -> unit
-    abstract member GetEntity: Coordinates -> Entity option
-    abstract member FindByTag: string -> Entity seq
-
-module private DictionaryHelper =
-    let get<'TKey, 'TValue> (dict : Dictionary<'TKey, 'TValue>) key =
-        match dict.TryGetValue(key) with
-        | false, _ -> None
-        | true, entity -> Some entity
-
-type World() =
+type World(render: IWorld -> int) =
     let mutable id = 0L
-    let entities = Dictionary<int64, Entity>()
+    let entities = Dictionary<int64, IEntity>()
     let grid = Dictionary<(int * int), int64>()
     let mutable systems = []
     member _.AddSystem (sys : IWorld -> unit) = systems <- sys :: systems
 
-    member this.Update() =
-        let world = this :> IWorld
-        systems |> List.iter (fun sys -> sys world)
+    member this.Update() = async {
+        while true do
+            let world = this :> IWorld
+            systems |> List.iter (fun sys -> sys world)
+            let sleepDuration = render world
+            do! Async.Sleep sleepDuration
+    }
 
     member private _.OnEntityUpdated (updateEvent: EntityUpdated) =
         let updateGrid () =
@@ -50,7 +41,7 @@ type World() =
             let entity = Entity(id)
             entity :> IObservable<EntityUpdated> |> Observable.add this.OnEntityUpdated
 
-            entity.SetComponent coordinates
+            (entity :> IEntity).SetComponent coordinates
             world.UpdateEntity entity
             entity
 
@@ -63,12 +54,8 @@ type World() =
             entities.Values
             |> Seq.filter (fun entity -> entity.HasTag tag)
 
-type IWorld<'T> =
-    inherit IWorld
-    abstract member SendMessage: 'T -> unit
-
-type World<'T>() =
-    inherit World()
+type World<'T>(render: IWorld -> int) =
+    inherit World(render)
 
     let eventHandler = EventHandler<'T> ()
 
