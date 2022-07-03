@@ -5,9 +5,7 @@ open Sokoban.Engine
 open Sokoban.Components
 open Sokoban.Systems
 
-let consoleRender = Render.console 5 >> fun _ -> 17
-
-let world = World<Systems.WorldMessage>(consoleRender)
+let world = World<Systems.WorldMessage>()
 let entityStore = world :> IWorld<Systems.WorldMessage>
 let player = entityStore.CreateEntity { X = 0; Y = 0}
 
@@ -18,13 +16,16 @@ player.SetComponent { Movable = true }
 let box1 = entityStore.CreateEntity { X = 2; Y = 0}
 
 box1.SetComponent { Movable = true }
-seq {
-    while true do
-        for _ in 0..3 do
-            yield "[o]"
 
-        yield "[-]"
+let rec animatedBox () = seq {
+    yield "[o]"
+    yield "[o]"
+    yield "[o]"
+    yield "[-]"
+    yield! animatedBox ()
 }
+
+animatedBox ()
 :?> IEnumerator<string>
 |> Animated
 |> box1.SetComponent
@@ -45,4 +46,7 @@ observableWorld
 )
 |> Observable.add movement.OnMove
 
-world.Update () |> Async.RunSynchronously
+world
+:> IWorld
+|> Render.console 5
+|> Async.RunSynchronously

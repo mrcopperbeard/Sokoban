@@ -3,20 +3,16 @@ namespace Sokoban.Engine
 open System
 open System.Collections.Generic
 
-type World(render: IWorld -> int) =
+type World() =
     let mutable id = 0L
     let entities = Dictionary<int64, IEntity>()
     let grid = Dictionary<(int * int), int64>()
     let mutable systems = []
     member _.AddSystem (sys : IWorld -> unit) = systems <- sys :: systems
 
-    member this.Update() = async {
-        while true do
-            let world = this :> IWorld
-            systems |> List.iter (fun sys -> sys world)
-            let sleepDuration = render world
-            do! Async.Sleep sleepDuration
-    }
+    member this.Update() =
+        let world = this :> IWorld
+        systems |> List.iter (fun sys -> sys world)
 
     member private _.OnEntityUpdated (updateEvent: EntityUpdated) =
         let updateGrid () =
@@ -54,8 +50,8 @@ type World(render: IWorld -> int) =
             entities.Values
             |> Seq.filter (fun entity -> entity.HasTag tag)
 
-type World<'T>(render: IWorld -> int) =
-    inherit World(render)
+type World<'T>() =
+    inherit World()
 
     let eventHandler = EventHandler<'T> ()
 
